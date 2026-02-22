@@ -19,7 +19,7 @@ Required env vars:
 - `$LHV_USERNAME` - LHV internet bank username
 - `$LHV_ISIKUKOOD` - Estonian personal ID number (isikukood)
 - `$LHV_ACCOUNT_INVESTMENT` - LHV investment account IBAN
-- `$LHV_ACCOUNT_REVOLUT` - Revolut account IBAN (used to filter report rows)
+- `$LHV_ACCOUNT_EXTERNAL` - Revolut account IBAN (used to filter report rows)
 
 ## Steps
 
@@ -27,7 +27,7 @@ Required env vars:
 2. If redirected to login, select **Smart-ID**, type **$LHV_USERNAME** into the username field and **$LHV_ISIKUKOOD** into the isikukood field, then click the login button to initiate authentication. Wait for the user to approve on their mobile device. The browser will automatically redirect to the report page once approved — wait for that redirect before continuing.
 3. Make sure only the **Investment • $LHV_ACCOUNT_INVESTMENT** account checkbox is checked; uncheck all other account checkboxes.
 4. Set the period to the previous full year (01.01.YYYY – 31.12.YYYY) and click **Saada päring** to load the report.
-5. Once the report table loads, use JavaScript to read the hidden popup data for each row and check/uncheck checkboxes so that **only rows where Konto = $LHV_ACCOUNT_REVOLUT** are checked. Use this script (replace REVOLUT_IBAN with the actual value from env):
+5. Once the report table loads, use JavaScript to read the hidden popup data for each row and check/uncheck checkboxes so that **only rows where Konto = $LHV_ACCOUNT_EXTERNAL** are checked. Use this script (replace REVOLUT_IBAN with the actual value from env):
 
 ```js
 async () => {
@@ -65,6 +65,6 @@ async () => {
 ## Notes
 
 - Authentication requires Smart-ID or Mobile-ID — this cannot be automated, user must log in manually.
-- `$LHV_ACCOUNT_REVOLUT` is the Revolut account. Only transfers to/from this account are relevant for the investment account tax report.
+- `$LHV_ACCOUNT_EXTERNAL` is the Revolut account. Only transfers to/from this account are relevant for the investment account tax report.
 - The report is inside an iframe (`iframe[title="Content"]`), so all DOM queries must go through `iframe.contentDocument`.
 - If the browser session is stuck, kill the Playwright Chrome process: `pkill -f "mcp-chrome"`
