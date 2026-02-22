@@ -2,9 +2,9 @@
 
 A collection of AI agent skills for automating personal workflows.
 
-## Securtiy disclaimer
+## Setup
 
-All environment variables are loaded
+Copy `.env.example` to `.env` and fill in your values.
 
 ## Skills
 
@@ -12,6 +12,6 @@ All environment variables are loaded
 - **estonia-events-coda** — Label and maintain the [Tallinn.dev](https://www.tallinn.dev) events database in Coda.
 - **lhv-investment-report** — Automate the annual LHV investment account tax report (Investeerimiskonto aruanne) and submit to MTA.
 
-## Setup
+## Security disclaimer
 
-Copy `.env.example` to `.env` and fill in your values.
+All secrets should be in env variables. Please check skills content and run them at your own risk.
