@@ -1,6 +1,6 @@
 # agent-skills
 
-A collection of AI agent skills for automating personal workflows. Uses the common [Agent Skills](https://agentskills.io/home) format supported by different agentic AI tools: Claude, Cursor, Gemini CLI, Codex and so on.
+A collection of AI agent skills for automating personal workflows. Uses the common [Agent Skills](https://agentskills.io/home) format supported by different agentic AI tools: Claude, Cursor, Gemini CLI, Codex, Open and so on.
 
 ## Setup
 
