@@ -1,6 +1,6 @@
 # agent-skills
 
-A collection of AI agent skills for automating personal workflows.
+A collection of AI agent skills for automating personal workflows. Uses the common [Agent Skills](https://agentskills.io/home) format supported by different agentic AI tools.
 
 ## Setup
 
