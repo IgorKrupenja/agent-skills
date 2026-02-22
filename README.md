@@ -1,10 +1,11 @@
 # agent-skills
 
-A collection of AI agent skills for automating personal workflows. Uses the common [Agent Skills](https://agentskills.io/home) format supported by different agentic AI tools.
+A collection of AI agent skills for automating personal workflows. Uses the common [Agent Skills](https://agentskills.io/home) format supported by different agentic AI tools: Claude, Cursor, Gemini CLI, Codex and so on.
 
 ## Setup
 
-Copy `.env.example` to `.env` and fill in your values.
+1. Clone this repo into a folder your agentic AI tool uses for skills.
+2. Copy `.env.example` to `.env` and fill in your values.
 
 ## Skills
 
