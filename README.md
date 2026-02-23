@@ -5,7 +5,7 @@ A collection of AI agent skills for automating personal workflows. Uses the comm
 ## Setup
 
 1. Clone this repo into a folder your agentic AI tool uses for skills.
-2. Copy `.env.example` to `.env` and fill in your values.
+2. Run `cp .env.example .env` and fill in your values in the `.env` file.
 
 ## Skills
 
