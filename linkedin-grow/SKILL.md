@@ -44,7 +44,7 @@ Use a single `browser_run_code` script to process all cards. The modal is a nati
 
 ```javascript
 async (page) => {
-  const keywords = ['hr','recruiter','talent','sourcing','hiring','people ops','people operations','talent partner','talent acquisition'];
+  const keywords = ['hr','recruiter','talent','sourcing','hiring','people'];
   // Override with env var if set: split $LINKEDIN_CONNECT_KEYWORDS by comma
 
   let connected = 0;
