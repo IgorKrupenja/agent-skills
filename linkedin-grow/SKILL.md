@@ -26,13 +26,14 @@ source "${SKILLS_DIR:-$HOME/.claude/skills}/.env"
 
 Required env vars:
 
-- `$LINKEDIN_CONNECT_KEYWORDS` - Comma-separated list of keywords to match against a person's job title (case-insensitive). Default: `HR,recruiter,talent,sourcing,hiring,people ops,people operations,talent partner,talent acquisition`
+- `$LINKEDIN_CONNECT_KEYWORDS` - Comma-separated list of keywords to match against a person's job title (case-insensitive). Default: `HR,recruiter,talent,sourcing,hiring,people`
+- `$LINKEDIN_GROW_LOCATION` - Location name used to find the correct section heading. Default: `Tallinn Metropolitan Area`
 
 Navigate to <https://www.linkedin.com/mynetwork/grow/>.
 
 ### 3. Open the "People you may know" modal
 
-The section **"People you may know based on your recent activity"** may not appear immediately — it loads further down the page.
+Look for the section heading **"People you may know in $LINKEDIN_GROW_LOCATION"** (e.g. "People you may know in Tallinn Metropolitan Area"). It may not appear immediately — it loads further down the page.
 
 1. If the section heading is not visible, click the **"Load more"** button at the bottom of the page and wait for new content to appear.
 2. Once the heading is visible, click the **"Show all"** button next to it. This opens a **modal** containing all suggestions.
