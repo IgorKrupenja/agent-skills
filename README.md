@@ -51,10 +51,10 @@ Send LinkedIn connection requests (without a note) to people in search results, 
 
 Send LinkedIn connection requests (without a note) to matching people in the "People you may know" section on the grow page, filtered by job title keywords.
 
-| Variable                    | Description                                                                                   |
-| --------------------------- | --------------------------------------------------------------------------------------------- |
-| `LINKEDIN_CONNECT_KEYWORDS` | Comma-separated job title keywords to match (case-insensitive)                                |
-| `LINKEDIN_GROW_LOCATION`    | Location name for the "People you may know in ..." section (e.g. `Tallinn Metropolitan Area`) |
+| Variable                 | Description                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `LINKEDIN_GROW_KEYWORDS` | Comma-separated job title keywords to match (case-insensitive)                                |
+| `LINKEDIN_GROW_LOCATION` | Location name for the "People you may know in ..." section (e.g. `Tallinn Metropolitan Area`) |
 
 ## Security disclaimer
 

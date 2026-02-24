@@ -26,7 +26,7 @@ source "${SKILLS_DIR:-$HOME/.claude/skills}/.env"
 
 Required env vars:
 
-- `$LINKEDIN_CONNECT_KEYWORDS` - Comma-separated list of keywords to match against a person's job title (case-insensitive). Default: `HR,recruiter,talent,sourcing,hiring,people`
+- `$LINKEDIN_GROW_KEYWORDS` - Comma-separated list of keywords to match against a person's job title (case-insensitive). Default: `HR,recruiter,talent,sourcing,hiring,people`
 - `$LINKEDIN_GROW_LOCATION` - Location name used to find the correct section heading. Default: `Tallinn Metropolitan Area`
 
 Navigate to <https://www.linkedin.com/mynetwork/grow/>.
@@ -45,7 +45,7 @@ Use a single `browser_run_code` script to process all cards. The modal is a nati
 ```javascript
 async (page) => {
   const keywords = ['hr','recruiter','talent','sourcing','hiring','people'];
-  // Override with env var if set: split $LINKEDIN_CONNECT_KEYWORDS by comma
+  // Override with env var if set: split $LINKEDIN_GROW_KEYWORDS by comma
 
   let connected = 0;
   let skipped = 0;
