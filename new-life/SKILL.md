@@ -1,6 +1,6 @@
 ---
 name: new-life
-description: Personal "New Life" events for the soul (culture/leisure, NOT work). Crawl Igor's bookmarked sources, list candidates in chat, add chosen ones to the private "New Life" Google Calendar, and remember what to skip — both single events and whole banned series. Use when Igor asks to show / review "new life" events, add a personal non-work event, or ban an event series.
+description: Personal "New Life" events for the soul (culture/leisure, NOT work). Crawl Igor's bookmarked sources, list candidates in chat, add events to the private "New Life" Google Calendar, and remember what to skip — both single events and whole banned series. Use when Igor asks to show / review "new life" events; when he pastes ANY event link (Facebook, Instagram, tiks.me, Fienta, …) and asks to add it to his personal / private / "личный" calendar — including a bare "добавь в личный календарь <ссылка>"; or when he wants to ban an event series.
 ---
 
 # New Life — Personal Events Skill
@@ -10,6 +10,8 @@ Runs in: **local** (needs the browser + the local Vivaldi bookmarks file).
 A dead-simple, personal counterpart to the tallinn.dev event skills — but for **culture & leisure** ("для души"), not IT/work. No Coda, no labels, no publishing. Just:
 
 **crawl bookmarked sources → list in chat → add the picks to a private calendar → remember the rejects.**
+
+Plus a standalone entry point that needs no crawl: **Igor pastes an event link → it lands on the calendar, fully filled in.** Same calendar, same formatting rules, same `state.json` bookkeeping — that's exactly why it lives in this skill and not a separate one.
 
 Everything is private: a personal Google Calendar and a git-ignored `state.json`. Nothing is published anywhere.
 
@@ -28,6 +30,7 @@ set -a && source "${SKILLS_DIR:-$HOME/.claude/skills}/.env" && set +a
 | `NEW_LIFE_CALENDAR_ID`      | Target Google Calendar ID (the private "New Life" calendar)          |
 | `NEW_LIFE_EVENT_COLOR`      | `gog` event color id 1–11 (so events stand out). `6` = Tangerine     |
 | `NEW_LIFE_TIMEZONE`         | IANA timezone, e.g. `Europe/Tallinn`                                 |
+| `GOOGLE_PLACES_API_KEY`     | Google Places key for `goplaces` (venue name → full address)         |
 
 State file: **`new-life/state.json`** (git-ignored). If missing, create it from `state.example.json`.
 
@@ -80,31 +83,99 @@ and colored in the sidebar with `gog calendar subscribe "$NEW_LIFE_CALENDAR_ID" 
 
    Criteria for now: **show everything** (no taste filtering yet). This will be refined over time.
 
-### B) "Add 1, 3, 5" → put on the calendar
+### B) Put an event on the calendar
 
-For each chosen candidate:
+**Two entry points, one pipeline:**
 
-1. **Extract full content** from its page. For **Facebook**, always click **"See more"** to expand the full text first.
-2. **Content policy:** do **not** summarize, do **not** translate, keep original formatting/emojis. (This is a private calendar — full original text is the point.)
-3. **Resolve location** to a real address when a venue name is given — either pass the venue/address text straight to `--location`, or let `gog` resolve it with `--location-search "Venue name, City"`.
-4. **Dedup:** skip if the URL is already in `state.json` `added`. (Optional extra safety: `gog calendar events "$NEW_LIFE_CALENDAR_ID" --from … --to … --json` for that day and compare title+time.)
-5. **Create the event:**
-   ```bash
-   gog calendar create "$NEW_LIFE_CALENDAR_ID" \
-     --summary "Event Title" \
-     --from "YYYY-MM-DDTHH:MM:SS" \
-     --to   "YYYY-MM-DDTHH:MM:SS" \
-     --timezone "$NEW_LIFE_TIMEZONE" \
-     --location "Full address or venue" \
-     --event-color "$NEW_LIFE_EVENT_COLOR" \
-     --description "<EVENT_URL>
+- **B1 — from the crawl table:** "добавь 1, 3, 5" → you already have the candidate's URL from step A.
+- **B2 — from a bare link:** "добавь в личный календарь `<URL>`" (any event link: Facebook, Instagram, tiks.me, Fienta, …). No crawl needed, no `state.json` filtering — Igor already decided. Go straight to step 1.
 
-   <FULL ORIGINAL DESCRIPTION>"
-   ```
-   - Description format: **URL on line 1**, blank line, then the full original text.
-   - Times: local `YYYY-MM-DDTHH:MM:SS` + `--timezone` (Google applies DST correctly). For all-day: `--all-day --from YYYY-MM-DD --to YYYY-MM-DD` (end = next day).
-6. **Record it** in `state.json` `added` so it's never re-suggested (see schema below).
-7. Report back with the event's `htmlLink`.
+Both paths run the **same 8 steps** below. Never shortcut B2 just because it's a one-off.
+
+#### The four mandatory fields
+
+An event is **not** ready to create until all four are filled. None of them may be silently left blank:
+
+| Field | Rule if you can't find it |
+| ----- | ------------------------- |
+| **Date + time** | Never guess the year — see step 0. If only a start time is given, assume **2 hours** and say so in your report. |
+| **Location** | Dig: FB events put the venue in a separate block, not in the body text. If there's genuinely no venue (online event), use `Online`. |
+| **Price** | Look hard (see step 3). Free → `tasuta`. Truly unfindable → **ask Igor**, don't create the event with a blank price. |
+| **Full description** | Complete original text, never summarized or translated. |
+
+#### Steps
+
+**0. Get today's date first** — avoids year errors on "15 сентября" with no year:
+```bash
+date +"%Y-%m-%d %A %Z"
+```
+
+**1. Normalize the URL.** Share links (`facebook.com/share/…`, `?rdid=…`, `&mibextid=…`, `/events/s/…`) are redirect wrappers. Open the link, then take the **canonical** URL from the address bar — for Facebook that's `https://www.facebook.com/events/<id>/`. Store and display the canonical one; the wrapper rots and is unreadable.
+
+**2. Extract full content with Playwright.** Open the page in the browser, dismiss cookie/login walls, read the snapshot.
+- **Facebook: always click "See more"** before extracting — FB truncates the body by default.
+- **Facebook mangles links inside the description — twice.** The visible text is cut with `…` (`https://open.spotify.com/artist/4fJ6…`) and the `href` is a `l.facebook.com/l.php?u=<percent-encoded>&fbclid=…` redirect. Neither is usable. Pull the real URL from each `<a>` and decode it:
+  ```js
+  [...node.querySelectorAll('a')].map(a => {
+    const u = new URL(a.href);
+    const real = u.hostname.endsWith('facebook.com') && u.searchParams.get('u')
+      ? new URL(decodeURIComponent(u.searchParams.get('u'))) : new URL(a.href);
+    ['fbclid','__cft__[0]','__tn__','si','utm_id'].forEach(p => real.searchParams.delete(p));
+    return { shown: a.innerText.trim(), real: real.href };
+  })
+  ```
+  Substitute the decoded URLs back into the description text. This is restoring what the author wrote, not editing it.
+- **Content policy:** do **not** summarize, do **not** translate, keep original line breaks, emphasis and emojis (incl. math-bold like `𝐌𝐔𝐔𝐒𝐈𝐊𝐀`). This is a private calendar — the full original text is the whole point.
+- Drop only FB's own UI chrome that lands in `innerText`: the trailing `See less` and the city tag link after it.
+- **Quoting:** write the assembled description to a temp file and pass `--description "$(cat file)"`. Inlining multi-line text with emoji into the shell mangles it.
+
+**3. Find the price.** Check, in this order:
+   1. the ticket/price block FB and ticketing sites render **outside** the description text;
+   2. the body text — `10€`, `10 EUR`, `tasuta`, `free`, `vaba sissepääs`, `annetus` / donation, `at the door`, `eelmüük`;
+   3. the ticket-vendor link (Fienta / tiks.me / Piletilevi) — open it if the price isn't on the event page itself.
+   - Multiple tiers → keep the range as-is: `10–15€`, `12€ / 15€ kohapeal`.
+   - Free → `tasuta`. Donation-based → `annetus`.
+   - Still nothing after all three → **ask Igor** rather than inventing or omitting.
+
+**4. Resolve the location** to a full street address:
+```bash
+goplaces search "Venue Name, Tallinn" --api-key "$GOOGLE_PLACES_API_KEY" --json
+```
+Use the `address` field. Sanity-check the `name` in the result actually matches the venue — Places happily returns a plausible wrong bar. Also glance at `business_status`: `CLOSED_PERMANENTLY` on a venue hosting a future event means you resolved the wrong place.
+
+**5. Check for duplicates** before creating:
+```bash
+gog calendar events "$NEW_LIFE_CALENDAR_ID" --from 2026-09-01 --to 2026-09-02 --json
+```
+Compare start time (few-minutes tolerance) + title. Also check the URL against `state.json` `added`. If it's a duplicate → report it and **stop**, don't create a second copy.
+
+**6. Create the event.**
+
+**Title format — price appended with an em dash:** `Event Title — 15€` (`Plurrr @ Sveta Baar — 15€`, `Plaaditurg — tasuta`).
+
+**Description format — price on line 1, URL on line 2, blank line, then the full original text:**
+```bash
+gog calendar create "$NEW_LIFE_CALENDAR_ID" \
+  --summary "Event Title — 15€" \
+  --from "YYYY-MM-DDTHH:MM:SS" \
+  --to   "YYYY-MM-DDTHH:MM:SS" \
+  --timezone "$NEW_LIFE_TIMEZONE" \
+  --location "Telliskivi tn 62, 10412 Tallinn, Estonia" \
+  --event-color "$NEW_LIFE_EVENT_COLOR" \
+  --source-url "<CANONICAL_EVENT_URL>" \
+  --description "15€
+<CANONICAL_EVENT_URL>
+
+<FULL ORIGINAL DESCRIPTION>"
+```
+- Times: local `YYYY-MM-DDTHH:MM:SS` + `--timezone` (Google applies DST correctly). For all-day: `--all-day --from YYYY-MM-DD --to YYYY-MM-DD` (end = next day).
+- `--location` takes the **resolved address** from step 4. (`--location-search "Venue, City"` also works and resolves internally, but resolving yourself lets you verify the match first.)
+- Add `-n/--dry-run` to inspect the exact payload before writing anything. Note it prints a `Dry run: would calendar.create` line **before** the JSON — strip it (`tail -n +2`) before piping to `jq`.
+- `--json` wraps the created event in an `event` key: read `.event.htmlLink`, not `.htmlLink`. Top-level `jq` on it silently yields `null`, which looks like a failed create when it actually succeeded.
+
+**7. Record it** in `state.json` `added` — for B2 links too, otherwise the crawler will re-suggest the event next week. (Schema below.)
+
+**8. Report back**: title, date/time, resolved address, price, and the event's `htmlLink`. Flag any assumption you made (guessed 2h duration, ambiguous venue match, price taken from the ticket vendor rather than the event page).
 
 ### C) "Not interested in 2, 4" / "Ban series 6" → remember the skip
 
@@ -167,7 +238,7 @@ print(json.dumps(show, ensure_ascii=False, indent=2))
 
 ```jsonc
 {
-  "added":    [ { "url": "...", "title": "...", "date": "2026-06-29", "added_at": "2026-06-27" } ],
+  "added":    [ { "url": "...", "title": "...", "date": "2026-06-29", "price": "15€", "added_at": "2026-06-27" } ],
   "declined": [ { "url": "...", "title": "...", "declined_at": "2026-06-27" } ],
   "banned_series": [
     {
@@ -186,20 +257,35 @@ Use `date +%F` for the `*_at` stamps. Edit the file directly (read → modify JS
 
 ## Quality checklist
 
+**Crawling (A):**
 - ✅ Sourced env; ran `date` first
 - ✅ Read bookmarks **fresh**; crawled **every** source; no source skipped
 - ✅ Every candidate has a URL
 - ✅ Filtered against `added` + `declined` + `banned_series`
 - ✅ Reported how many were hidden and why (no silent drops)
-- ✅ On add: full original text (no summary/translate), FB "See more" expanded, URL on line 1
-- ✅ Event created with `--event-color "$NEW_LIFE_EVENT_COLOR"` and `--timezone "$NEW_LIFE_TIMEZONE"`
+
+**Adding (B) — applies to both the crawl picks and a pasted link:**
+- ✅ Canonical URL (FB share/`rdid` wrapper resolved to `/events/<id>/`)
+- ✅ All four mandatory fields present: date+time, location, **price**, full description
+- ✅ Full original text — no summary, no translation, FB "See more" expanded
+- ✅ Location resolved via `goplaces`; result name actually matches the venue
+- ✅ Duplicate check done (calendar for that day + `state.json` `added`)
+- ✅ Title ends with `— <price>`; description is price / URL / blank line / full text
+- ✅ Created with `--event-color "$NEW_LIFE_EVENT_COLOR"` and `--timezone "$NEW_LIFE_TIMEZONE"`
 - ✅ Recorded adds/declines/bans back into `state.json`
+- ✅ Reported `htmlLink` + every assumption made
 
 ## Pitfalls
 
 - ❌ Skipping a source because there are "enough" candidates already
 - ❌ A candidate with no URL
+- ❌ **Creating an event with no price** — find it, or ask; never leave it blank
+- ❌ **Leaving `--location` empty** because the body text didn't mention a venue — FB keeps it in a separate block
+- ❌ Saving the FB share wrapper (`/share/…?mibextid=…`) instead of the canonical `/events/<id>/` URL
+- ❌ Treating a pasted link (B2) as a shortcut — it runs the same 8 steps
 - ❌ Summarizing/translating the description, or forgetting FB "See more"
 - ❌ Date-only `--from/--to` for a timed event (use `THH:MM:SS` + `--timezone`)
 - ❌ Forgetting to record an add/decline/ban → it gets suggested again
 - ❌ Committing `state.json` (it's git-ignored — keep it that way)
+
+> Note: the sibling `events-add` skill warns that date-only `--from/--to` breaks `gog calendar events`. That was true for an older `gog`; on v0.30.0 both date-only and RFC3339 work for listing. Date-only in `create` still needs `--all-day`.
