@@ -69,7 +69,13 @@ async (page) => {
         const link = el.querySelector('a[href*="linkedin.com/in/"]');
         if (link) { linkText = link.textContent?.toLowerCase() || ''; break; }
       }
-      const matches = kws.some(kw => linkText.includes(kw));
+      // Word-boundary match, NOT a naive substring: short keywords like "hr"
+      // otherwise match inside common words ("hr" ⊂ "tHRough") and names
+      // ("hr" ⊂ "SuBHRajyoti"), sending many off-target invites.
+      const matches = kws.some(kw => {
+        const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp('\\b' + esc, 'i').test(linkText);
+      });
       return { ariaLabel, matches };
     });
   }, keywords);
@@ -126,6 +132,8 @@ Run this script in a loop (re-fetching cards each iteration) until no new unproc
 #### Keyword matching
 
 Match keywords **case-insensitively** against the profile link's full text content (which includes both name and title). The link text format is typically: `NAME NAME TITLE`.
+
+Match on a **leading word boundary** (`\b` + keyword), **never** a naive substring (`includes`). Short keywords like `hr` otherwise match inside ordinary words and names — `hr` is a substring of "t**hr**ough" (extremely common in headlines: "…driving success **through** data…") and of names like "Su**bhr**ajyoti Patra" — which sends large numbers of off-target invites. A leading word boundary still catches "**HR** Specialist", "**HR**BP", "**Talent** Acquisition", "**People** Operations", plurals, etc.
 
 #### Detecting the weekly limit
 
