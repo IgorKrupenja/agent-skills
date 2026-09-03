@@ -99,8 +99,10 @@ An event is **not** ready to create until all four are filled. None of them may 
 | Field | Rule if you can't find it |
 | ----- | ------------------------- |
 | **Date + time** | Never guess the year — see step 0. If only a start time is given, assume **2 hours** and say so in your report. |
-| **Location** | Dig: FB events put the venue in a separate block, not in the body text. If there's genuinely no venue (online event), use `Online`. |
-| **Price** | Look hard (see step 3). Free → `tasuta`. Truly unfindable → **ask Igor**, don't create the event with a blank price. |
+| **Location** | Dig: FB events put the venue in a separate block, not in the body text. Online event → `Online`. **Distributed events** (yard-sale days, city-wide festivals, tours across a district) legitimately have no single address — use the district as given (`Nõmme, Tallinn, Estonia`) and keep any route/map link in the description rather than forcing a fake street address. |
+| **Price** | Look hard (see step 3), then **default to `0€`. Never ask Igor about price** — just note in your report that it wasn't stated. |
+| **Language** | Language the event is actually held in. If not stated, infer from the description text. Bilingual → `EE / ENG`. |
+| **Booking** | Does *attending* require booking ahead? See step 3c. Default when nothing indicates it: **no booking**. |
 | **Full description** | Complete original text, never summarized or translated. |
 
 #### Steps
@@ -111,6 +113,10 @@ date +"%Y-%m-%d %A %Z"
 ```
 
 **1. Normalize the URL.** Share links (`facebook.com/share/…`, `?rdid=…`, `&mibextid=…`, `/events/s/…`) are redirect wrappers. Open the link, then take the **canonical** URL from the address bar — for Facebook that's `https://www.facebook.com/events/<id>/`. Store and display the canonical one; the wrapper rots and is unreadable.
+
+**Two link shapes that are NOT wrappers — never strip them:**
+- **FB recurring events** use `facebook.com/events/<series_id>/<occurrence_id>/`. The second id *is* the date Igor picked. Dropping it lands on the series and silently changes which occurrence you add. Keep both segments. (The page shows the sibling dates as a row of chips — useful for confirming which one is live.)
+- **Fienta series** live at `fienta.com/[ru/]s/<slug>` and list several dates, each its own page at `fienta.com/[ru/]<slug>-<id>`. A series link is **not** an event: open it, pick the date, and check availability — sold-out dates are marked (`Распродано` / `Sold out`) and must not be added. If several dates are open and Igor didn't say which, add the nearest available one and tell him the others exist.
 
 **2. Extract full content with Playwright.** Open the page in the browser, dismiss cookie/login walls, read the snapshot.
 - **Facebook: always click "See more"** before extracting — FB truncates the body by default.
@@ -133,9 +139,32 @@ date +"%Y-%m-%d %A %Z"
    1. the ticket/price block FB and ticketing sites render **outside** the description text;
    2. the body text — `10€`, `10 EUR`, `tasuta`, `free`, `vaba sissepääs`, `annetus` / donation, `at the door`, `eelmüük`;
    3. the ticket-vendor link (Fienta / tiks.me / Piletilevi) — open it if the price isn't on the event page itself.
-   - Multiple tiers → keep the range as-is: `10–15€`, `12€ / 15€ kohapeal`.
-   - Free → `tasuta`. Donation-based → `annetus`.
-   - Still nothing after all three → **ask Igor** rather than inventing or omitting.
+
+   Then normalize to a **numeric-first** form:
+   - Paid → `15€`.
+   - **Choice-based tiers** (anyone may pick — pay-what-you-want, early bird vs door) → keep the range: `1–10€`, `12€ / 15€ kohapeal`.
+   - **Eligibility-based tiers** (student, child, pensioner) → use the **regular adult price only**: a tour at `18€ regular / 12€ student / 0€ kids` is `18€`, never `0–18€`. Igor pays the adult price; folding in discounts he can't claim makes the number a lie.
+   - **Quantity bundles** (`Двойной билет 18€`, group of 4) → also the single-ticket price: `10€`, not `10–18€`. A bundle is more tickets, not a cheaper option — and Igor is usually going alone.
+   - Free (`tasuta`, `vaba sissepääs`, `free entry`) → **`0€`**.
+   - Donation-based → `annetus`.
+   - **Nothing found after all three → `0€`.** Do NOT ask Igor about price, ever — most of what he adds is free-entry anyway. Just say in your report that the page didn't state it, so he can spot a wrong guess.
+
+**3b. Determine the language.** What language the event is actually held in — matters most for talks, screenings and discussions. If the page states it, use that; otherwise infer from the description text. Short codes: `EE`, `RU`, `ENG`. Bilingual/multilingual → `EE / ENG`. When you inferred rather than read it, say so in your report.
+
+> ⚠️ **Do not trust Fienta's `inLanguage` field.** It reflects the *page locale* (from the `/et/`, `/ru/` URL segment), not the language the event is held in. A Russian-language stand-up club listed at `fienta.com/et/…` reports `inLanguage: "et"` while its whole description — and its audience — is Russian. Always cross-check against the description text and the organizer's own profile; the description wins.
+
+**3c. Decide whether booking is required.** The question is strictly: **must Igor do something in advance in order to attend?** If yes → the title gets a trailing `[BOOK]`. If no → nothing is added.
+
+Signals that it IS required:
+- a ticket / registration CTA on the event itself (`Get Tickets`, `Register`, `Osta pilet`), or a link to Fienta / Piletilevi / Eventbrite / Luma / a registration form;
+- the body says `registreeru`, `eelregistreerimine`, `kohtade arv on piiratud`, `limited seats`, `RSVP`, `sign up`, `регистрация`, `запись обязательна`.
+
+**Two false positives that show up constantly — neither means `[BOOK]`:**
+1. **Vendor / performer booking.** Markets and fairs routinely say `Müügikoha broneerimine` (booking a *stall*), `Kui soovid tulla kodukohvikut pidama, kirjuta…`, `apply to play`. That's for people who want to *sell or perform*, not to visit. Visitors walk in freely.
+2. **Host-page ticket buttons.** In FB's "Meet your hosts" block, each host Page can carry its own `Get tickets` CTA. That belongs to the Page, not to this event. Only a ticket/registration element attached to the event itself counts.
+3. **Registration for a sub-activity.** A free fair can contain one thing that needs signing up — a kids' fun run, a workshop slot, a tournament. `Registreerimine on vajalik` scoped to that sub-activity does not make the event itself booked; Igor can still just walk in.
+
+When in doubt, ask yourself who the instruction is addressed to — the audience, or the people running a table. Only the former counts. Default is **no booking**.
 
 **4. Resolve the location** to a full street address:
 ```bash
@@ -145,25 +174,46 @@ Use the `address` field. Sanity-check the `name` in the result actually matches 
 
 **5. Check for duplicates** before creating:
 ```bash
-gog calendar events "$NEW_LIFE_CALENDAR_ID" --from 2026-09-01 --to 2026-09-02 --json
+gog calendar events "$NEW_LIFE_CALENDAR_ID" --from 2026-09-01 --to 2026-09-02 --all-pages --json
 ```
 Compare start time (few-minutes tolerance) + title. Also check the URL against `state.json` `added`. If it's a duplicate → report it and **stop**, don't create a second copy.
 
+> ⚠️ **`gog calendar events` paginates at 10 by default** and just returns a `nextPageToken` — the missing events are invisible unless you look for it. A multi-day range silently truncates, so a duplicate check over a busy week can report "nothing there" while the duplicate sits on page 2. Always pass **`--all-pages`** (or `--max`), and treat any listing without it as unreliable.
+
 **6. Create the event.**
 
-**Title format — price appended with an em dash:** `Event Title — 15€` (`Plurrr @ Sveta Baar — 15€`, `Plaaditurg — tasuta`).
+**Title format:** `Event Title · <price>` plus a trailing ` [BOOK]` only when booking is required.
 
-**Description format — price on line 1, URL on line 2, blank line, then the full original text:**
+```
+PLURRR · 0€                      ← free, just show up
+Kontsert · 10–15€                ← paid, no booking
+Keelekohvik · 0€ [BOOK]          ← free but you must register
+Workshop · 25€ [BOOK]            ← paid and booked
+```
+
+Always a middot `·`, never an em dash; always a numeric price, never the word `tasuta`. `[BOOK]` is uppercase, in square brackets, always last — and **absent entirely** when booking isn't needed (no `[NO BOOK]`, no empty brackets).
+
+**Description format — three header lines, then a blank line, then the full original text:**
+
+```
+<LANGUAGE>      ← line 1: EE / RU / ENG / EE / ENG
+<PRICE>         ← line 2: 0€ / 15€ / annetus
+<CANONICAL_URL> ← line 3
+                ← blank
+<FULL ORIGINAL DESCRIPTION>
+```
+
 ```bash
 gog calendar create "$NEW_LIFE_CALENDAR_ID" \
-  --summary "Event Title — 15€" \
+  --summary "Event Title · 15€" \
   --from "YYYY-MM-DDTHH:MM:SS" \
   --to   "YYYY-MM-DDTHH:MM:SS" \
   --timezone "$NEW_LIFE_TIMEZONE" \
   --location "Telliskivi tn 62, 10412 Tallinn, Estonia" \
   --event-color "$NEW_LIFE_EVENT_COLOR" \
   --source-url "<CANONICAL_EVENT_URL>" \
-  --description "15€
+  --description "EE
+15€
 <CANONICAL_EVENT_URL>
 
 <FULL ORIGINAL DESCRIPTION>"
@@ -238,7 +288,7 @@ print(json.dumps(show, ensure_ascii=False, indent=2))
 
 ```jsonc
 {
-  "added":    [ { "url": "...", "title": "...", "date": "2026-06-29", "price": "15€", "added_at": "2026-06-27" } ],
+  "added":    [ { "url": "...", "title": "...", "date": "2026-06-29", "price": "0€", "lang": "EE", "book": false, "added_at": "2026-06-27" } ],
   "declined": [ { "url": "...", "title": "...", "declined_at": "2026-06-27" } ],
   "banned_series": [
     {
@@ -266,11 +316,12 @@ Use `date +%F` for the `*_at` stamps. Edit the file directly (read → modify JS
 
 **Adding (B) — applies to both the crawl picks and a pasted link:**
 - ✅ Canonical URL (FB share/`rdid` wrapper resolved to `/events/<id>/`)
-- ✅ All four mandatory fields present: date+time, location, **price**, full description
+- ✅ All six mandatory fields present: date+time, location, **price**, **language**, **booking**, full description
 - ✅ Full original text — no summary, no translation, FB "See more" expanded
 - ✅ Location resolved via `goplaces`; result name actually matches the venue
 - ✅ Duplicate check done (calendar for that day + `state.json` `added`)
-- ✅ Title ends with `— <price>`; description is price / URL / blank line / full text
+- ✅ Title is ` · <price>` (numeric, `0€` not `tasuta`), with ` [BOOK]` only if attending needs booking
+- ✅ Description header is language / price / URL, then a blank line, then the full text
 - ✅ Created with `--event-color "$NEW_LIFE_EVENT_COLOR"` and `--timezone "$NEW_LIFE_TIMEZONE"`
 - ✅ Recorded adds/declines/bans back into `state.json`
 - ✅ Reported `htmlLink` + every assumption made
@@ -279,7 +330,11 @@ Use `date +%F` for the `*_at` stamps. Edit the file directly (read → modify JS
 
 - ❌ Skipping a source because there are "enough" candidates already
 - ❌ A candidate with no URL
-- ❌ **Creating an event with no price** — find it, or ask; never leave it blank
+- ❌ **Asking Igor what the price is** — he explicitly doesn't want the question; unfindable means `0€`
+- ❌ Writing `tasuta` / `free` in the title instead of `0€`, or joining with `—` instead of ` · `
+- ❌ Forgetting the language line — it's line 1 of every description
+- ❌ **Tagging `[BOOK]` off vendor-side booking** (`Müügikoha broneerimine`) or a host Page's own `Get tickets` button — neither applies to attending
+- ❌ Adding `[NO BOOK]` or empty brackets when no booking is needed — the tag is simply absent
 - ❌ **Leaving `--location` empty** because the body text didn't mention a venue — FB keeps it in a separate block
 - ❌ Saving the FB share wrapper (`/share/…?mibextid=…`) instead of the canonical `/events/<id>/` URL
 - ❌ Treating a pasted link (B2) as a shortcut — it runs the same 8 steps
