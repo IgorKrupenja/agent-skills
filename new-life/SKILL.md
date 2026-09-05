@@ -78,6 +78,12 @@ and colored in the sidebar with `gog calendar subscribe "$NEW_LIFE_CALENDAR_ID" 
    | # | Date | Title | Where | Source | Link |
    |---|------|-------|-------|--------|------|
 
+   **NEVER bold, star or highlight individual rows.** Every candidate gets identical plain
+   formatting — no `**`, no ⭐/🔥, no "(recommended)", no reordering to float favourites to the
+   top. Igor found this confusing: emphasis with no stated criterion looks like it means
+   something official when it is really just the model's own hunch. Caveats go in the notes
+   below the table, not as formatting inside it.
+
    Then **report what was filtered** — never drop silently:
    > Скрыл 4: 2 уже добавлены, 1 ранее отклонён, 1 из забаненной серии «Open Mic».
 
